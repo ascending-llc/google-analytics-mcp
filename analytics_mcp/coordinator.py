@@ -18,7 +18,28 @@ The singleton allows other modules to register their tools with the same MCP
 server using `@mcp.tool` annotations, thereby 'coordinating' the bootstrapping
 of the server.
 """
+import os
 from mcp.server.fastmcp import FastMCP
 
+
+def _get_http_host() -> str:
+    """Returns the HTTP bind host for FastMCP."""
+    return os.getenv("FASTMCP_HTTP_HOST", "127.0.0.1")
+
+
+def _get_http_port() -> int:
+    """Returns the HTTP bind port for FastMCP."""
+    raw_port = os.getenv("FASTMCP_HTTP_PORT", "8000")
+    try:
+        return int(raw_port)
+    except ValueError:
+        return 8000
+
+
 # Creates the singleton.
-mcp = FastMCP("Google Analytics Server")
+mcp = FastMCP(
+    "Google Analytics Server",
+    host=_get_http_host(),
+    port=_get_http_port(),
+    streamable_http_path=os.getenv("FASTMCP_HTTP_PATH", "/mcp"),
+)

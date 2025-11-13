@@ -16,6 +16,8 @@
 
 """Entry point for the Google Analytics MCP server."""
 
+import os
+
 from analytics_mcp.coordinator import mcp
 
 # The following imports are necessary to register the tools with the `mcp`
@@ -27,12 +29,22 @@ from analytics_mcp.tools.reporting import realtime  # noqa: F401
 from analytics_mcp.tools.reporting import core  # noqa: F401
 
 
+def main() -> None:
+    """Runs the MCP server using the FastMCP transports."""
+    transport = os.getenv("MCP_TRANSPORT", "streamable-http")
+
+    if transport == "streamable-http":
+        mcp.run(transport="streamable-http")
+    else:
+        mcp.run()
+
+
 def run_server() -> None:
     """Runs the server.
 
     Serves as the entrypoint for the 'runmcp' command.
     """
-    mcp.run()
+    main()
 
 
 if __name__ == "__main__":
