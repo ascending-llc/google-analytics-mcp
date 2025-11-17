@@ -28,6 +28,7 @@ from analytics_mcp.tools.utils import (
     create_data_api_client,
     proto_to_dict,
 )
+from analytics_mcp.auth.google_auth import GoogleAuthenticationError
 from google.analytics import data_v1beta
 
 
@@ -80,6 +81,7 @@ def _run_report_description() -> str:
 
 
 async def run_report(
+    user_email: str,
     property_id: int | str,
     date_ranges: List[Dict[str, str]],
     dimensions: List[str],
@@ -102,6 +104,7 @@ async def run_report(
     https://github.com/googleapis/googleapis/tree/master/google/analytics/data/v1beta.
 
     Args:
+        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
@@ -168,9 +171,16 @@ async def run_report(
     if currency_code:
         request.currency_code = currency_code
 
-    response = await create_data_api_client().run_report(request)
-
-    return proto_to_dict(response)
+    try:
+        client = await create_data_api_client(user_email)
+        response = await client.run_report(request)
+        return proto_to_dict(response)
+    except GoogleAuthenticationError as e:
+        return {
+            "error": "authentication_required",
+            "message": str(e),
+            "auth_url": e.auth_url,
+        }
 
 
 # The `run_report` tool requires a more complex description that's generated at

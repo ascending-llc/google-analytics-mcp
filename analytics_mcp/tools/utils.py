@@ -14,13 +14,20 @@
 
 """Common utilities used by the MCP server."""
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from google.analytics import admin_v1beta, data_v1beta, admin_v1alpha
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.oauth2.credentials import Credentials
 from importlib import metadata
 import google.auth
 import proto
+
+from analytics_mcp.auth.google_auth import (
+    get_authenticated_credentials,
+    GoogleAuthenticationError,
+)
+from analytics_mcp.auth.oauth21_session_store import get_session_context
 
 
 def _get_package_version_with_fallback():
@@ -45,40 +52,89 @@ _READ_ONLY_ANALYTICS_SCOPE = (
 )
 
 
-def _create_credentials() -> google.auth.credentials.Credentials:
-    """Returns Application Default Credentials with read-only scope."""
-    (credentials, _) = google.auth.default(scopes=[_READ_ONLY_ANALYTICS_SCOPE])
+async def _get_oauth_credentials(user_email: str) -> Credentials:
+    """
+    Get OAuth credentials for a user.
+
+    Args:
+        user_email: User's Google email address
+
+    Returns:
+        OAuth credentials
+
+    Raises:
+        GoogleAuthenticationError: If authentication is required (with auth URL)
+    """
+    credentials = await get_authenticated_credentials(
+        user_email=user_email,
+        service_name="Google Analytics",
+    )
     return credentials
 
 
-def create_admin_api_client() -> admin_v1beta.AnalyticsAdminServiceAsyncClient:
+async def create_admin_api_client(
+    user_email: str,
+) -> admin_v1beta.AnalyticsAdminServiceAsyncClient:
     """Returns a properly configured Google Analytics Admin API async client.
 
-    Uses Application Default Credentials with read-only scope.
+    Uses per-user OAuth credentials.
+
+    Args:
+        user_email: User's Google email address for authentication
+
+    Returns:
+        Configured Admin API client
+
+    Raises:
+        GoogleAuthenticationError: If authentication is required
     """
+    credentials = await _get_oauth_credentials(user_email)
     return admin_v1beta.AnalyticsAdminServiceAsyncClient(
-        client_info=_CLIENT_INFO, credentials=_create_credentials()
+        client_info=_CLIENT_INFO, credentials=credentials
     )
 
 
-def create_data_api_client() -> data_v1beta.BetaAnalyticsDataAsyncClient:
+async def create_data_api_client(
+    user_email: str,
+) -> data_v1beta.BetaAnalyticsDataAsyncClient:
     """Returns a properly configured Google Analytics Data API async client.
 
-    Uses Application Default Credentials with read-only scope.
+    Uses per-user OAuth credentials.
+
+    Args:
+        user_email: User's Google email address for authentication
+
+    Returns:
+        Configured Data API client
+
+    Raises:
+        GoogleAuthenticationError: If authentication is required
     """
+    credentials = await _get_oauth_credentials(user_email)
     return data_v1beta.BetaAnalyticsDataAsyncClient(
-        client_info=_CLIENT_INFO, credentials=_create_credentials()
+        client_info=_CLIENT_INFO, credentials=credentials
     )
 
 
-def create_admin_alpha_api_client() -> (
-    admin_v1alpha.AnalyticsAdminServiceAsyncClient
-):
+async def create_admin_alpha_api_client(
+    user_email: str,
+) -> admin_v1alpha.AnalyticsAdminServiceAsyncClient:
     """Returns a properly configured Google Analytics Admin API (alpha) async client.
-    Uses Application Default Credentials with read-only scope.
+
+    Uses per-user OAuth credentials.
+
+    Args:
+        user_email: User's Google email address for authentication
+
+    Returns:
+        Configured Admin API (alpha) client
+
+    Raises:
+        GoogleAuthenticationError: If authentication is required
     """
+    credentials = await _get_oauth_credentials(user_email)
     return admin_v1alpha.AnalyticsAdminServiceAsyncClient(
-        client_info=_CLIENT_INFO, credentials=_create_credentials()
+        client_info=_CLIENT_INFO, credentials=credentials
     )
 
 

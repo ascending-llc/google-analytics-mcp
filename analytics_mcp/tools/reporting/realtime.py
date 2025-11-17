@@ -28,6 +28,7 @@ from analytics_mcp.tools.reporting.metadata import (
     get_metric_filter_hints,
     get_order_bys_hints,
 )
+from analytics_mcp.auth.google_auth import GoogleAuthenticationError
 from google.analytics import data_v1beta
 
 
@@ -78,6 +79,7 @@ def _run_realtime_report_description() -> str:
 
 
 async def run_realtime_report(
+    user_email: str,
     property_id: int | str,
     dimensions: List[str],
     metrics: List[str],
@@ -95,6 +97,7 @@ async def run_realtime_report(
     for more information.
 
     Args:
+        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
@@ -158,8 +161,16 @@ async def run_realtime_report(
     if offset:
         request.offset = offset
 
-    response = await create_data_api_client().run_realtime_report(request)
-    return proto_to_dict(response)
+    try:
+        client = await create_data_api_client(user_email)
+        response = await client.run_realtime_report(request)
+        return proto_to_dict(response)
+    except GoogleAuthenticationError as e:
+        return {
+            "error": "authentication_required",
+            "message": str(e),
+            "auth_url": e.auth_url,
+        }
 
 
 # The `run_realtime_report` tool requires a more complex description that's generated at
