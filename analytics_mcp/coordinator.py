@@ -17,9 +17,18 @@
 The singleton allows other modules to register their tools with the same MCP
 server using `@mcp.tool` annotations, thereby 'coordinating' the bootstrapping
 of the server.
+
+Includes OAuth middleware integration for per-user authentication.
 """
 import os
+import logging
 from mcp.server.fastmcp import FastMCP
+from starlette.middleware import Middleware
+from starlette.applications import Starlette
+
+from analytics_mcp.auth.mcp_session_middleware import MCPSessionMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 def _get_http_host() -> str:
@@ -29,15 +38,43 @@ def _get_http_host() -> str:
 
 def _get_http_port() -> int:
     """Returns the HTTP bind port for FastMCP."""
-    raw_port = os.getenv("FASTMCP_HTTP_PORT", "8000")
+    # Use port 3334 as default for Analytics MCP
+    raw_port = os.getenv("FASTMCP_HTTP_PORT", "3334")
     try:
         return int(raw_port)
     except ValueError:
-        return 8000
+        return 3334
 
 
-# Creates the singleton.
-mcp = FastMCP(
+# Starlette middleware for session extraction
+session_middleware = Middleware(MCPSessionMiddleware)
+
+
+# Custom FastMCP that adds OAuth middleware stack
+class SecureFastMCP(FastMCP):
+    """
+    Extended FastMCP with OAuth session middleware.
+
+    Adds session extraction middleware to the Starlette HTTP app
+    to enable per-user authentication.
+    """
+
+    def streamable_http_app(self) -> "Starlette":
+        """Override to add OAuth session middleware stack."""
+        app = super().streamable_http_app()
+
+        # Add middleware in order (first added = outermost layer)
+        # Session Management - extracts session info for MCP context
+        app.user_middleware.insert(0, session_middleware)
+
+        # Rebuild middleware stack
+        app.middleware_stack = app.build_middleware_stack()
+        logger.info("Added OAuth session middleware to Analytics MCP server")
+        return app
+
+
+# Creates the singleton with OAuth middleware
+mcp = SecureFastMCP(
     "Google Analytics Server",
     host=_get_http_host(),
     port=_get_http_port(),
