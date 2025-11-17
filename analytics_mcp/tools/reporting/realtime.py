@@ -14,12 +14,12 @@
 
 """Tools for running realtime reports using the Data API."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from analytics_mcp.coordinator import mcp
+from analytics_mcp.tools.service_decorator import require_analytics_service
 from analytics_mcp.tools.utils import (
     construct_property_rn,
-    create_data_api_client,
     proto_to_dict,
 )
 from analytics_mcp.tools.reporting.metadata import (
@@ -28,7 +28,6 @@ from analytics_mcp.tools.reporting.metadata import (
     get_metric_filter_hints,
     get_order_bys_hints,
 )
-from analytics_mcp.auth.google_auth import GoogleAuthenticationError
 from google.analytics import data_v1beta
 
 
@@ -78,17 +77,19 @@ def _run_realtime_report_description() -> str:
 """
 
 
+@require_analytics_service("data")
 async def run_realtime_report(
+    client,
     property_id: int | str,
     dimensions: List[str],
     metrics: List[str],
+    user_email: str,
     dimension_filter: Dict[str, Any] = None,
     metric_filter: Dict[str, Any] = None,
     order_bys: List[Dict[str, Any]] = None,
     limit: int = None,
     offset: int = None,
     return_property_quota: bool = False,
-    user_email: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Runs a Google Analytics Data API realtime report.
 
@@ -102,6 +103,7 @@ async def run_realtime_report(
           - A string consisting of 'properties/' followed by a number
         dimensions: A list of dimensions to include in the report. Dimensions must be realtime dimensions.
         metrics: A list of metrics to include in the report. Metrics must be realtime metrics.
+        user_email: User's Google email address for authentication.
         dimension_filter: A Data API FilterExpression
           (https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/FilterExpression)
           to apply to the dimensions.  Don't use this for filtering metrics. Use
@@ -132,8 +134,6 @@ async def run_realtime_report(
           reports, following the guide at
           https://developers.google.com/analytics/devguides/reporting/data/v1/basics#pagination.
         return_property_quota: Whether to return realtime property quota in the response.
-        user_email: Optional user's Google email address for authentication.
-                   If not provided, will be extracted from session context.
     """
     request = data_v1beta.RunRealtimeReportRequest(
         property=construct_property_rn(property_id),
@@ -162,16 +162,8 @@ async def run_realtime_report(
     if offset:
         request.offset = offset
 
-    try:
-        client = await create_data_api_client(user_email)
-        response = await client.run_realtime_report(request)
-        return proto_to_dict(response)
-    except GoogleAuthenticationError as e:
-        return {
-            "error": "authentication_required",
-            "message": str(e),
-            "auth_url": e.auth_url,
-        }
+    response = await client.run_realtime_report(request)
+    return proto_to_dict(response)
 
 
 # The `run_realtime_report` tool requires a more complex description that's generated at

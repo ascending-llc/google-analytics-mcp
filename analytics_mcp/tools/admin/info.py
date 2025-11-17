@@ -14,49 +14,43 @@
 
 """Tools for gathering Google Analytics account and property information."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from analytics_mcp.coordinator import mcp
+from analytics_mcp.tools.service_decorator import require_analytics_service
 from analytics_mcp.tools.utils import (
     construct_property_rn,
-    create_admin_api_client,
-    create_admin_alpha_api_client,
     proto_to_dict,
 )
-from analytics_mcp.auth.google_auth import GoogleAuthenticationError
 from google.analytics import admin_v1beta, admin_v1alpha
 
 
 @mcp.tool()
+@require_analytics_service("admin")
 async def get_account_summaries(
-    user_email: Optional[str] = None,
+    client,
+    user_email: str,
 ) -> List[Dict[str, Any]]:
     """Retrieves information about the user's Google Analytics accounts and properties.
 
     Args:
-        user_email: Optional user's Google email address for authentication.
-                   If not provided, will be extracted from session context.
+        user_email: User's Google email address for authentication.
     """
-    try:
-        # Uses an async list comprehension so the pager returned by
-        # list_account_summaries retrieves all pages.
-        client = await create_admin_api_client(user_email)
-        summary_pager = await client.list_account_summaries()
-        all_pages = [
-            proto_to_dict(summary_page) async for summary_page in summary_pager
-        ]
-        return all_pages
-    except GoogleAuthenticationError as e:
-        return {
-            "error": "authentication_required",
-            "message": str(e),
-            "auth_url": e.auth_url,
-        }
+    # Uses an async list comprehension so the pager returned by
+    # list_account_summaries retrieves all pages.
+    summary_pager = await client.list_account_summaries()
+    all_pages = [
+        proto_to_dict(summary_page) async for summary_page in summary_pager
+    ]
+    return all_pages
 
 
 @mcp.tool(title="List links to Google Ads accounts")
+@require_analytics_service("admin")
 async def list_google_ads_links(
-    property_id: int | str, user_email: Optional[str] = None
+    client,
+    property_id: int | str,
+    user_email: str,
 ) -> List[Dict[str, Any]]:
     """Returns a list of links to Google Ads accounts for a property.
 
@@ -64,59 +58,47 @@ async def list_google_ads_links(
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: Optional user's Google email address for authentication.
-                   If not provided, will be extracted from session context.
+        user_email: User's Google email address for authentication.
     """
-    try:
-        request = admin_v1beta.ListGoogleAdsLinksRequest(
-            parent=construct_property_rn(property_id)
-        )
-        # Uses an async list comprehension so the pager returned by
-        # list_google_ads_links retrieves all pages.
-        client = await create_admin_api_client(user_email)
-        links_pager = await client.list_google_ads_links(request=request)
-        all_pages = [
-            proto_to_dict(link_page) async for link_page in links_pager
-        ]
-        return all_pages
-    except GoogleAuthenticationError as e:
-        return {
-            "error": "authentication_required",
-            "message": str(e),
-            "auth_url": e.auth_url,
-        }
+    request = admin_v1beta.ListGoogleAdsLinksRequest(
+        parent=construct_property_rn(property_id)
+    )
+    # Uses an async list comprehension so the pager returned by
+    # list_google_ads_links retrieves all pages.
+    links_pager = await client.list_google_ads_links(request=request)
+    all_pages = [
+        proto_to_dict(link_page) async for link_page in links_pager
+    ]
+    return all_pages
 
 
 @mcp.tool(title="Gets details about a property")
+@require_analytics_service("admin")
 async def get_property_details(
-    property_id: int | str, user_email: Optional[str] = None
+    client,
+    property_id: int | str,
+    user_email: str,
 ) -> Dict[str, Any]:
     """Returns details about a property.
     Args:
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: Optional user's Google email address for authentication.
-                   If not provided, will be extracted from session context.
+        user_email: User's Google email address for authentication.
     """
-    try:
-        client = await create_admin_api_client(user_email)
-        request = admin_v1beta.GetPropertyRequest(
-            name=construct_property_rn(property_id)
-        )
-        response = await client.get_property(request=request)
-        return proto_to_dict(response)
-    except GoogleAuthenticationError as e:
-        return {
-            "error": "authentication_required",
-            "message": str(e),
-            "auth_url": e.auth_url,
-        }
+    request = admin_v1beta.GetPropertyRequest(
+        name=construct_property_rn(property_id)
+    )
+    response = await client.get_property(request=request)
+    return proto_to_dict(response)
 
 
 @mcp.tool(title="Gets property annotations for a property")
+@require_analytics_service("admin_alpha")
 async def list_property_annotations(
-    property_id: int | str, user_email: Optional[str] = None
+    client,
+    property_id: int | str,
+    user_email: str,
 ) -> List[Dict[str, Any]]:
     """Returns annotations for a property.
 
@@ -128,25 +110,16 @@ async def list_property_annotations(
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: Optional user's Google email address for authentication.
-                   If not provided, will be extracted from session context.
+        user_email: User's Google email address for authentication.
     """
-    try:
-        request = admin_v1alpha.ListReportingDataAnnotationsRequest(
-            parent=construct_property_rn(property_id)
-        )
-        client = await create_admin_alpha_api_client(user_email)
-        annotations_pager = await client.list_reporting_data_annotations(
-            request=request
-        )
-        all_pages = [
-            proto_to_dict(annotation_page)
-            async for annotation_page in annotations_pager
-        ]
-        return all_pages
-    except GoogleAuthenticationError as e:
-        return {
-            "error": "authentication_required",
-            "message": str(e),
-            "auth_url": e.auth_url,
-        }
+    request = admin_v1alpha.ListReportingDataAnnotationsRequest(
+        parent=construct_property_rn(property_id)
+    )
+    annotations_pager = await client.list_reporting_data_annotations(
+        request=request
+    )
+    all_pages = [
+        proto_to_dict(annotation_page)
+        async for annotation_page in annotations_pager
+    ]
+    return all_pages
