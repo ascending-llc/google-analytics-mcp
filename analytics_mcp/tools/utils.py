@@ -30,6 +30,37 @@ from analytics_mcp.auth.google_auth import (
 from analytics_mcp.auth.oauth21_session_store import get_session_context
 
 
+def _get_user_email_from_context(provided_email: Optional[str] = None) -> str:
+    """
+    Get user email from provided parameter or session context.
+
+    Args:
+        provided_email: Optionally provided user email
+
+    Returns:
+        User email address
+
+    Raises:
+        ValueError: If no user email can be determined
+    """
+    if provided_email:
+        return provided_email
+
+    # Try to get from session context
+    context = get_session_context()
+    if context and context.user_id:
+        return context.user_id
+
+    # Try to get from metadata
+    if context and context.metadata and "user_email" in context.metadata:
+        return context.metadata["user_email"]
+
+    raise ValueError(
+        "user_email parameter is required but not provided. "
+        "Please ensure you are authenticated or provide user_email explicitly."
+    )
+
+
 def _get_package_version_with_fallback():
     """Returns the version of the package.
 
@@ -73,66 +104,75 @@ async def _get_oauth_credentials(user_email: str) -> Credentials:
 
 
 async def create_admin_api_client(
-    user_email: str,
+    user_email: Optional[str] = None,
 ) -> admin_v1beta.AnalyticsAdminServiceAsyncClient:
     """Returns a properly configured Google Analytics Admin API async client.
 
     Uses per-user OAuth credentials.
 
     Args:
-        user_email: User's Google email address for authentication
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
 
     Returns:
         Configured Admin API client
 
     Raises:
         GoogleAuthenticationError: If authentication is required
+        ValueError: If user_email cannot be determined
     """
-    credentials = await _get_oauth_credentials(user_email)
+    email = _get_user_email_from_context(user_email)
+    credentials = await _get_oauth_credentials(email)
     return admin_v1beta.AnalyticsAdminServiceAsyncClient(
         client_info=_CLIENT_INFO, credentials=credentials
     )
 
 
 async def create_data_api_client(
-    user_email: str,
+    user_email: Optional[str] = None,
 ) -> data_v1beta.BetaAnalyticsDataAsyncClient:
     """Returns a properly configured Google Analytics Data API async client.
 
     Uses per-user OAuth credentials.
 
     Args:
-        user_email: User's Google email address for authentication
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
 
     Returns:
         Configured Data API client
 
     Raises:
         GoogleAuthenticationError: If authentication is required
+        ValueError: If user_email cannot be determined
     """
-    credentials = await _get_oauth_credentials(user_email)
+    email = _get_user_email_from_context(user_email)
+    credentials = await _get_oauth_credentials(email)
     return data_v1beta.BetaAnalyticsDataAsyncClient(
         client_info=_CLIENT_INFO, credentials=credentials
     )
 
 
 async def create_admin_alpha_api_client(
-    user_email: str,
+    user_email: Optional[str] = None,
 ) -> admin_v1alpha.AnalyticsAdminServiceAsyncClient:
     """Returns a properly configured Google Analytics Admin API (alpha) async client.
 
     Uses per-user OAuth credentials.
 
     Args:
-        user_email: User's Google email address for authentication
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
 
     Returns:
         Configured Admin API (alpha) client
 
     Raises:
         GoogleAuthenticationError: If authentication is required
+        ValueError: If user_email cannot be determined
     """
-    credentials = await _get_oauth_credentials(user_email)
+    email = _get_user_email_from_context(user_email)
+    credentials = await _get_oauth_credentials(email)
     return admin_v1alpha.AnalyticsAdminServiceAsyncClient(
         client_info=_CLIENT_INFO, credentials=credentials
     )

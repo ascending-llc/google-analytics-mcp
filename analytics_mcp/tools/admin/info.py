@@ -14,7 +14,7 @@
 
 """Tools for gathering Google Analytics account and property information."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from analytics_mcp.coordinator import mcp
 from analytics_mcp.tools.utils import (
@@ -28,11 +28,14 @@ from google.analytics import admin_v1beta, admin_v1alpha
 
 
 @mcp.tool()
-async def get_account_summaries(user_email: str) -> List[Dict[str, Any]]:
+async def get_account_summaries(
+    user_email: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Retrieves information about the user's Google Analytics accounts and properties.
 
     Args:
-        user_email: User's Google email address for authentication
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     try:
         # Uses an async list comprehension so the pager returned by
@@ -53,15 +56,16 @@ async def get_account_summaries(user_email: str) -> List[Dict[str, Any]]:
 
 @mcp.tool(title="List links to Google Ads accounts")
 async def list_google_ads_links(
-    user_email: str, property_id: int | str
+    property_id: int | str, user_email: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """Returns a list of links to Google Ads accounts for a property.
 
     Args:
-        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     try:
         request = admin_v1beta.ListGoogleAdsLinksRequest(
@@ -85,14 +89,15 @@ async def list_google_ads_links(
 
 @mcp.tool(title="Gets details about a property")
 async def get_property_details(
-    user_email: str, property_id: int | str
+    property_id: int | str, user_email: Optional[str] = None
 ) -> Dict[str, Any]:
     """Returns details about a property.
     Args:
-        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     try:
         client = await create_admin_api_client(user_email)
@@ -111,7 +116,7 @@ async def get_property_details(
 
 @mcp.tool(title="Gets property annotations for a property")
 async def list_property_annotations(
-    user_email: str, property_id: int | str
+    property_id: int | str, user_email: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """Returns annotations for a property.
 
@@ -120,10 +125,11 @@ async def list_property_annotations(
     and rapid traffic increases or decreases due to external factors.
 
     Args:
-        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     try:
         request = admin_v1alpha.ListReportingDataAnnotationsRequest(

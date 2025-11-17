@@ -19,7 +19,13 @@ class OAuthConfig:
     def __init__(self):
         # Base server configuration
         self.base_uri = os.getenv("ANALYTICS_MCP_BASE_URI", "http://localhost")
-        self.port = int(os.getenv("ANALYTICS_MCP_PORT", "3334"))  # Default port for Analytics MCP
+
+        # Extract port number (handle Kubernetes service URL format)
+        port_env = os.getenv("ANALYTICS_MCP_PORT", "3334")
+        if "://" in port_env:
+            # Kubernetes sets this to tcp://IP:PORT, extract just the port
+            port_env = port_env.split(":")[-1]
+        self.port = int(port_env)  # Default port for Analytics MCP
         self.base_url = f"{self.base_uri}:{self.port}"
 
         # External URL for reverse proxy scenarios (e.g., Jarvis)

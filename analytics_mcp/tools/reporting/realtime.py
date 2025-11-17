@@ -14,7 +14,7 @@
 
 """Tools for running realtime reports using the Data API."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from analytics_mcp.coordinator import mcp
 from analytics_mcp.tools.utils import (
@@ -79,7 +79,6 @@ def _run_realtime_report_description() -> str:
 
 
 async def run_realtime_report(
-    user_email: str,
     property_id: int | str,
     dimensions: List[str],
     metrics: List[str],
@@ -89,6 +88,7 @@ async def run_realtime_report(
     limit: int = None,
     offset: int = None,
     return_property_quota: bool = False,
+    user_email: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Runs a Google Analytics Data API realtime report.
 
@@ -97,7 +97,6 @@ async def run_realtime_report(
     for more information.
 
     Args:
-        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
@@ -133,6 +132,8 @@ async def run_realtime_report(
           reports, following the guide at
           https://developers.google.com/analytics/devguides/reporting/data/v1/basics#pagination.
         return_property_quota: Whether to return realtime property quota in the response.
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     request = data_v1beta.RunRealtimeReportRequest(
         property=construct_property_rn(property_id),

@@ -14,7 +14,7 @@
 
 """Tools for running core reports using the Data API."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from analytics_mcp.coordinator import mcp
 from analytics_mcp.tools.reporting.metadata import (
@@ -81,7 +81,6 @@ def _run_report_description() -> str:
 
 
 async def run_report(
-    user_email: str,
     property_id: int | str,
     date_ranges: List[Dict[str, str]],
     dimensions: List[str],
@@ -93,6 +92,7 @@ async def run_report(
     offset: int = None,
     currency_code: str = None,
     return_property_quota: bool = False,
+    user_email: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Runs a Google Analytics Data API report.
 
@@ -104,7 +104,6 @@ async def run_report(
     https://github.com/googleapis/googleapis/tree/master/google/analytics/data/v1beta.
 
     Args:
-        user_email: User's Google email address for authentication
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
@@ -140,6 +139,8 @@ async def run_report(
           ISO4217 format, such as "AED", "USD", "JPY". If the field is empty, the
           report uses the property's default currency.
         return_property_quota: Whether to return property quota in the response.
+        user_email: Optional user's Google email address for authentication.
+                   If not provided, will be extracted from session context.
     """
     request = data_v1beta.RunReportRequest(
         property=construct_property_rn(property_id),
