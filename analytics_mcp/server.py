@@ -41,13 +41,9 @@ from analytics_mcp.tools.reporting import core  # noqa: F401
 
 logger = logging.getLogger("analytics-mcp.server")
 
-# Google OAuth JWT settings
-JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs"
-ISSUER = "https://accounts.google.com"
-AUDIENCE = os.getenv(
-    "GOOGLE_CLIENT_ID",
-    "376233267225-v3opdggtr2jsip2bpc7kme4vjp7g9obr.apps.googleusercontent.com",
-)
+# Google OAuth token forwarding from Jarvis
+# Jarvis manages OAuth flow and forwards tokens via Authorization header
+# No configuration needed here - just extract tokens in middleware
 
 
 async def health_check(request: Request) -> JSONResponse:
@@ -108,16 +104,16 @@ _original_http_app = mcp.http_app
 def http_app_with_middleware(
     path: str | None = None,
     middleware: list[Middleware] | None = None,
+    json_response: bool | None = None,
+    stateless_http: bool | None = None,
     transport: Literal["streamable-http", "sse", "http"] = "streamable-http",
-    stateless_http: bool = False,
 ) -> StarletteWithLifespan:
-    """Create HTTP app with UserTokenMiddleware for JWT validation."""
-    user_token_mw = Middleware(
-        UserTokenMiddleware,
-        jwks_uri=JWKS_URI,
-        issuer=ISSUER,
-        audience=AUDIENCE,
-    )
+    """Create HTTP app with UserTokenMiddleware for token extraction.
+
+    UserTokenMiddleware extracts Google OAuth tokens from Authorization header.
+    Jarvis manages the OAuth flow and automatically forwards tokens.
+    """
+    user_token_mw = Middleware(UserTokenMiddleware)
     final_middleware_list = [user_token_mw]
     if middleware:
         final_middleware_list.extend(middleware)
@@ -125,8 +121,9 @@ def http_app_with_middleware(
     return _original_http_app(
         path=path,
         middleware=final_middleware_list,
-        transport=transport,
+        json_response=json_response,
         stateless_http=stateless_http,
+        transport=transport,
     )
 
 
@@ -146,8 +143,10 @@ def main() -> None:
     """Runs the MCP server using HTTP transport."""
     # Always use HTTP transport for token-based authentication
     transport = os.getenv("MCP_TRANSPORT", "streamable-http")
-    logger.info(f"Starting Analytics MCP server with transport: {transport}")
-    mcp.run(transport=transport)
+    host = os.getenv("FASTMCP_HTTP_HOST", "0.0.0.0")
+    port = int(os.getenv("FASTMCP_HTTP_PORT", "3334"))
+    logger.info(f"Starting Analytics MCP server with transport: {transport} on {host}:{port}")
+    mcp.run(transport=transport, host=host, port=port)
 
 
 def run_server() -> None:

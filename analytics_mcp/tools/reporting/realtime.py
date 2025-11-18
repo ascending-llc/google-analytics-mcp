@@ -167,12 +167,6 @@ async def run_realtime_report(
     return proto_to_dict(response)
 
 
-# The `run_realtime_report` tool requires a more complex description that's generated at
-# runtime. Uses the `add_tool` method instead of an annnotation since `add_tool`
-# provides the flexibility needed to generate the description while also
-# including the `run_realtime_report` method's docstring.
-mcp.add_tool(
-    run_realtime_report,
-    title="Run a Google Analytics realtime report using the Data API",
-    description=_run_realtime_report_description(),
-)
+# Register the tool with custom description
+# The description is generated at runtime to include hints
+mcp.tool(description=_run_realtime_report_description())(run_realtime_report)
