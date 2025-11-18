@@ -112,23 +112,12 @@ async def get_analytics_admin_client(
             client_info=_CLIENT_INFO, credentials=credentials
         )
 
-        # Validate the token by making a test API call (list account summaries)
-        try:
-            # This will fail if the token is invalid
-            test_pager = await client.list_account_summaries()
-            # Just check that the pager is valid, don't consume results
-            logger.debug(
-                f"get_analytics_admin_client: Validated token for user {user_email}"
-            )
-        except Exception as e:
-            logger.error(
-                f"get_analytics_admin_client: Token validation failed: {e}",
-                exc_info=True,
-            )
-            raise ValueError(f"Invalid Google OAuth token: {e}")
-
         # Cache in request state for this request duration
+        # Token validation happens naturally when the actual API call is made
         request.state.admin_client = client
+        logger.debug(
+            f"get_analytics_admin_client: Created client for user {user_email}"
+        )
         return client
 
     except RuntimeError:

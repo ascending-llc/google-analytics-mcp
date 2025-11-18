@@ -105,7 +105,6 @@ def http_app_with_middleware(
     path: str | None = None,
     middleware: list[Middleware] | None = None,
     json_response: bool | None = None,
-    stateless_http: bool | None = None,
     transport: Literal["streamable-http", "sse", "http"] = "streamable-http",
 ) -> StarletteWithLifespan:
     """Create HTTP app with UserTokenMiddleware for token extraction.
@@ -122,7 +121,7 @@ def http_app_with_middleware(
         path=path,
         middleware=final_middleware_list,
         json_response=json_response,
-        stateless_http=stateless_http,
+        stateless_http=False,  # Enable stateful sessions for persistent SSE
         transport=transport,
     )
 
