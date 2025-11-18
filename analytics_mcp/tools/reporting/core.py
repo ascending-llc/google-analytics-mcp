@@ -16,8 +16,10 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
-from analytics_mcp.tools.service_decorator import require_analytics_service
+from analytics_mcp.dependencies import get_analytics_data_client
 from analytics_mcp.tools.reporting.metadata import (
     get_date_ranges_hints,
     get_dimension_filter_hints,
@@ -79,14 +81,12 @@ def _run_report_description() -> str:
           """
 
 
-@require_analytics_service("data")
 async def run_report(
-    client,
+    ctx: Context,
     property_id: int | str,
     date_ranges: List[Dict[str, str]],
     dimensions: List[str],
     metrics: List[str],
-    user_email: str,
     dimension_filter: Dict[str, Any] = None,
     metric_filter: Dict[str, Any] = None,
     order_bys: List[Dict[str, Any]] = None,
@@ -113,7 +113,6 @@ async def run_report(
           to include in the report.
         dimensions: A list of dimensions to include in the report.
         metrics: A list of metrics to include in the report.
-        user_email: User's Google email address for authentication.
         dimension_filter: A Data API FilterExpression
           (https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/FilterExpression)
           to apply to the dimensions.  Don't use this for filtering metrics. Use
@@ -172,6 +171,8 @@ async def run_report(
     if currency_code:
         request.currency_code = currency_code
 
+    # Get user-specific client from dependency injection
+    client = await get_analytics_data_client(ctx)
     response = await client.run_report(request)
     return proto_to_dict(response)
 

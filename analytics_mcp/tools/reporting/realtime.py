@@ -16,8 +16,10 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
-from analytics_mcp.tools.service_decorator import require_analytics_service
+from analytics_mcp.dependencies import get_analytics_data_client
 from analytics_mcp.tools.utils import (
     construct_property_rn,
     proto_to_dict,
@@ -77,13 +79,11 @@ def _run_realtime_report_description() -> str:
 """
 
 
-@require_analytics_service("data")
 async def run_realtime_report(
-    client,
+    ctx: Context,
     property_id: int | str,
     dimensions: List[str],
     metrics: List[str],
-    user_email: str,
     dimension_filter: Dict[str, Any] = None,
     metric_filter: Dict[str, Any] = None,
     order_bys: List[Dict[str, Any]] = None,
@@ -103,7 +103,6 @@ async def run_realtime_report(
           - A string consisting of 'properties/' followed by a number
         dimensions: A list of dimensions to include in the report. Dimensions must be realtime dimensions.
         metrics: A list of metrics to include in the report. Metrics must be realtime metrics.
-        user_email: User's Google email address for authentication.
         dimension_filter: A Data API FilterExpression
           (https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/FilterExpression)
           to apply to the dimensions.  Don't use this for filtering metrics. Use
@@ -162,6 +161,8 @@ async def run_realtime_report(
     if offset:
         request.offset = offset
 
+    # Get user-specific client from dependency injection
+    client = await get_analytics_data_client(ctx)
     response = await client.run_realtime_report(request)
     return proto_to_dict(response)
 

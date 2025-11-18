@@ -12,17 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module declaring the singleton MCP instance.
+"""Application context for Analytics MCP server lifespan."""
 
-The singleton allows other modules to register their tools with the same MCP
-server using `@mcp.tool` annotations, thereby 'coordinating' the bootstrapping
-of the server.
-"""
+from dataclasses import dataclass
 
-from fastmcp import FastMCP
+from analytics_mcp.config import AnalyticsConfig
 
-from analytics_mcp.context import AppContext
 
-# Creates the singleton MCP server instance
-# The actual server configuration (middleware, lifespan) happens in server.py
-mcp = FastMCP[AppContext]("Google Analytics Server")
+@dataclass(frozen=True)
+class AppContext:
+    """Application-level context shared across the server lifespan.
+
+    This context is created during server startup and contains
+    global configuration that doesn't change during server lifetime.
+    """
+
+    analytics_config: AnalyticsConfig | None
+    read_only: bool = False

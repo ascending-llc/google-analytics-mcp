@@ -16,8 +16,13 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
-from analytics_mcp.tools.service_decorator import require_analytics_service
+from analytics_mcp.dependencies import (
+    get_analytics_admin_client,
+    get_analytics_admin_alpha_client,
+)
 from analytics_mcp.tools.utils import (
     construct_property_rn,
     proto_to_dict,
@@ -26,16 +31,11 @@ from google.analytics import admin_v1beta, admin_v1alpha
 
 
 @mcp.tool()
-@require_analytics_service("admin")
-async def get_account_summaries(
-    client,
-    user_email: str,
-) -> List[Dict[str, Any]]:
-    """Retrieves information about the user's Google Analytics accounts and properties.
+async def get_account_summaries(ctx: Context) -> List[Dict[str, Any]]:
+    """Retrieves information about the user's Google Analytics accounts and properties."""
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
 
-    Args:
-        user_email: User's Google email address for authentication.
-    """
     # Uses an async list comprehension so the pager returned by
     # list_account_summaries retrieves all pages.
     summary_pager = await client.list_account_summaries()
@@ -46,11 +46,9 @@ async def get_account_summaries(
 
 
 @mcp.tool(title="List links to Google Ads accounts")
-@require_analytics_service("admin")
 async def list_google_ads_links(
-    client,
+    ctx: Context,
     property_id: int | str,
-    user_email: str,
 ) -> List[Dict[str, Any]]:
     """Returns a list of links to Google Ads accounts for a property.
 
@@ -58,8 +56,10 @@ async def list_google_ads_links(
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: User's Google email address for authentication.
     """
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
+
     request = admin_v1beta.ListGoogleAdsLinksRequest(
         parent=construct_property_rn(property_id)
     )
@@ -73,19 +73,19 @@ async def list_google_ads_links(
 
 
 @mcp.tool(title="Gets details about a property")
-@require_analytics_service("admin")
 async def get_property_details(
-    client,
+    ctx: Context,
     property_id: int | str,
-    user_email: str,
 ) -> Dict[str, Any]:
     """Returns details about a property.
     Args:
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: User's Google email address for authentication.
     """
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
+
     request = admin_v1beta.GetPropertyRequest(
         name=construct_property_rn(property_id)
     )
@@ -94,11 +94,9 @@ async def get_property_details(
 
 
 @mcp.tool(title="Gets property annotations for a property")
-@require_analytics_service("admin_alpha")
 async def list_property_annotations(
-    client,
+    ctx: Context,
     property_id: int | str,
-    user_email: str,
 ) -> List[Dict[str, Any]]:
     """Returns annotations for a property.
 
@@ -110,8 +108,10 @@ async def list_property_annotations(
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
-        user_email: User's Google email address for authentication.
     """
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_alpha_client(ctx)
+
     request = admin_v1alpha.ListReportingDataAnnotationsRequest(
         parent=construct_property_rn(property_id)
     )
