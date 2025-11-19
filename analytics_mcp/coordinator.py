@@ -19,10 +19,38 @@ server using `@mcp.tool` annotations, thereby 'coordinating' the bootstrapping
 of the server.
 """
 
+import logging
+
 from fastmcp import FastMCP
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
 
 from analytics_mcp.context import AppContext
+from analytics_mcp.utils.user_token_middleware import UserTokenMiddleware
+
+logger = logging.getLogger("analytics-mcp.coordinator")
+
+# Middleware for token extraction
+token_middleware = Middleware(UserTokenMiddleware)
+
+
+# Custom FastMCP class that overrides streamable_http_app to add middleware
+class AnalyticsFastMCP(FastMCP[AppContext]):
+    """FastMCP subclass that adds UserTokenMiddleware to streamable-http transport."""
+
+    def streamable_http_app(self) -> "Starlette":
+        """Override to add UserTokenMiddleware for token extraction."""
+        app = super().streamable_http_app()
+
+        # Add token middleware (first added = outermost layer)
+        app.user_middleware.insert(0, token_middleware)
+
+        # Rebuild middleware stack
+        app.middleware_stack = app.build_middleware_stack()
+        logger.info("Added UserTokenMiddleware to streamable-http app")
+        return app
+
 
 # Creates the singleton MCP server instance
-# The actual server configuration (middleware, lifespan) happens in server.py
-mcp = FastMCP[AppContext]("Google Analytics Server")
+# The middleware is configured in streamable_http_app() override above
+mcp = AnalyticsFastMCP("Google Analytics Server")

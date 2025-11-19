@@ -20,18 +20,14 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Literal
 
 from fastmcp import FastMCP
-from fastmcp.server.http import StarletteWithLifespan
-from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from analytics_mcp.config import AnalyticsConfig
 from analytics_mcp.context import AppContext
 from analytics_mcp.coordinator import mcp
-from analytics_mcp.utils.user_token_middleware import UserTokenMiddleware
 
 # The following imports are necessary to register the tools with the `mcp`
 # object, even though they are not directly used in this file.
@@ -40,10 +36,6 @@ from analytics_mcp.tools.reporting import realtime  # noqa: F401
 from analytics_mcp.tools.reporting import core  # noqa: F401
 
 logger = logging.getLogger("analytics-mcp.server")
-
-# Google OAuth token forwarding from Jarvis
-# Jarvis manages OAuth flow and forwards tokens via Authorization header
-# No configuration needed here - just extract tokens in middleware
 
 
 async def health_check(request: Request) -> JSONResponse:
@@ -95,39 +87,6 @@ async def analytics_lifespan(
 
 # Configure the MCP server with lifespan
 mcp._lifespan = analytics_lifespan
-
-
-# Override the http_app method to add middleware
-_original_http_app = mcp.http_app
-
-
-def http_app_with_middleware(
-    path: str | None = None,
-    middleware: list[Middleware] | None = None,
-    json_response: bool | None = None,
-    stateless_http: bool | None = None,
-    transport: Literal["streamable-http", "sse", "http"] = "streamable-http",
-) -> StarletteWithLifespan:
-    """Create HTTP app with UserTokenMiddleware for token extraction.
-
-    UserTokenMiddleware extracts Google OAuth tokens from Authorization header.
-    Jarvis manages the OAuth flow and automatically forwards tokens.
-    """
-    user_token_mw = Middleware(UserTokenMiddleware)
-    final_middleware_list = [user_token_mw]
-    if middleware:
-        final_middleware_list.extend(middleware)
-
-    return _original_http_app(
-        path=path,
-        middleware=final_middleware_list,
-        json_response=json_response,
-        stateless_http=stateless_http,
-        transport=transport,
-    )
-
-
-mcp.http_app = http_app_with_middleware
 
 
 @mcp.custom_route("/health", methods=["GET"], include_in_schema=False)
