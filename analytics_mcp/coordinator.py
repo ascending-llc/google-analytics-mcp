@@ -19,41 +19,10 @@ server using `@mcp.tool` annotations, thereby 'coordinating' the bootstrapping
 of the server.
 """
 
-import logging
-from starlette.applications import Starlette
-from starlette.middleware import Middleware
 from fastmcp import FastMCP
 
-from analytics_mcp.utils.user_token_middleware import UserTokenMiddleware
-
-logger = logging.getLogger("analytics-mcp.coordinator")
-
-# Middleware instance for UserTokenMiddleware
-user_token_middleware = Middleware(UserTokenMiddleware)
-
-# Custom FastMCP class that adds UserTokenMiddleware
-# Following the exact pattern from Google Workspace MCP
-class AnalyticsFastMCP(FastMCP):
-    def streamable_http_app(self) -> Starlette:
-        """Override to add UserTokenMiddleware for OAuth token extraction."""
-        print("[ANALYTICS-MCP] Creating streamable HTTP app with middleware", flush=True)
-        logger.info("Creating streamable HTTP app with middleware")
-
-        app = super().streamable_http_app()
-
-        # Add UserTokenMiddleware (first added = outermost layer)
-        app.user_middleware.insert(0, user_token_middleware)
-
-        # Rebuild middleware stack
-        app.middleware_stack = app.build_middleware_stack()
-
-        print(f"[ANALYTICS-MCP] Added UserTokenMiddleware - total middleware: {len(app.user_middleware)}", flush=True)
-        logger.info(f"Added UserTokenMiddleware - total middleware: {len(app.user_middleware)}")
-        return app
+from analytics_mcp.context import AppContext
 
 # Creates the singleton MCP server instance
-# Following Google Workspace pattern: no generic brackets at instantiation
-mcp = AnalyticsFastMCP(
-    name="Google Analytics Server",
-    auth=None,
-)
+# The actual server configuration (middleware, lifespan) happens in server.py
+mcp = FastMCP[AppContext]("Google Analytics Server")

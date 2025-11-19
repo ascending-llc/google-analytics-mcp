@@ -43,6 +43,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Then, add the rest of the project source code and install it
 # Installing separately from its dependencies allows optimal layer caching
 COPY . /app
+# Clean any stale bytecode to prevent cache issues
+RUN find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+RUN find /app -type f -name "*.pyc" -delete 2>/dev/null || true
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --python 3.10 --frozen --no-dev --no-editable
 

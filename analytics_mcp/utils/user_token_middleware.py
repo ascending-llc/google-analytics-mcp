@@ -53,28 +53,16 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        log_msg = f"[MW] {request.method} {request.url.path} | Auth: {mask_sensitive(request.headers.get('authorization', 'NONE'), 10)}"
-        print(log_msg, flush=True)
-        logger.info(log_msg)
+        logger.debug(
+            f"UserTokenMiddleware: Processing {request.method} {request.url.path}"
+        )
 
         # Skip auth for health check
         if request.url.path == "/health":
-            print("[MW] Health check - skip auth", flush=True)
-            logger.info("[MW] Health check - skip auth")
             return await call_next(request)
-
-        # Handle GET requests (SSE streams)
-        if request.method == "GET":
-            print(f"[MW] GET/SSE stream request to {request.url.path}", flush=True)
-            logger.info(f"[MW] GET/SSE stream request")
-            response = await call_next(request)
-            print(f"[MW] GET/SSE response: {response.status_code}", flush=True)
-            logger.info(f"[MW] GET/SSE response: {response.status_code}")
-            return response
 
         # Only check auth for POST/HEAD requests
         if request.method not in ["POST", "HEAD"]:
-            logger.info(f"[MW] Skip auth for {request.method}")
             return await call_next(request)
 
         # Extract headers
@@ -90,19 +78,20 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
                 try:
                     request_data = json.loads(body.decode())
                     method = request_data.get("method")
-                    logger.info(f"[MW] MCP method: {method}")
                     if method in [
                         "ping",
                         "tools/list",
                         "prompts/list",
                         "resources/list",
                     ]:
-                        logger.info(f"[MW] Allow '{method}' without auth")
+                        logger.debug(
+                            f"Allowing MCP protocol method '{method}' without auth"
+                        )
                         return await call_next(request)
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     pass
         except Exception as e:
-            logger.warning(f"[MW] Body read failed: {e}")
+            logger.warning(f"Failed to read request body: {e}")
 
         # Require Authorization header
         if not auth_header:
