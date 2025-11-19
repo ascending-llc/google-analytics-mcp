@@ -53,20 +53,22 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        logger.info(
-            f"[MW] {request.method} {request.url.path} | "
-            f"Auth: {mask_sensitive(request.headers.get('authorization', 'NONE'), 10)}"
-        )
+        log_msg = f"[MW] {request.method} {request.url.path} | Auth: {mask_sensitive(request.headers.get('authorization', 'NONE'), 10)}"
+        print(log_msg, flush=True)
+        logger.info(log_msg)
 
         # Skip auth for health check
         if request.url.path == "/health":
+            print("[MW] Health check - skip auth", flush=True)
             logger.info("[MW] Health check - skip auth")
             return await call_next(request)
 
         # Handle GET requests (SSE streams)
         if request.method == "GET":
+            print(f"[MW] GET/SSE stream request to {request.url.path}", flush=True)
             logger.info(f"[MW] GET/SSE stream request")
             response = await call_next(request)
+            print(f"[MW] GET/SSE response: {response.status_code}", flush=True)
             logger.info(f"[MW] GET/SSE response: {response.status_code}")
             return response
 

@@ -18,6 +18,7 @@
 
 import logging
 import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -30,6 +31,14 @@ from analytics_mcp.config import AnalyticsConfig
 from analytics_mcp.context import AppContext
 from analytics_mcp.coordinator import mcp
 from analytics_mcp.utils.user_token_middleware import UserTokenMiddleware
+
+# Configure logging to ensure our logs show up
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout,
+    force=True  # Override any existing configuration
+)
 
 # The following imports are necessary to register the tools with the `mcp`
 # object, even though they are not directly used in this file.
@@ -106,6 +115,9 @@ def streamable_http_app_with_middleware():
     UserTokenMiddleware extracts Google OAuth tokens from Authorization header.
     Jarvis manages the OAuth flow and automatically forwards tokens.
     """
+    print("[ANALYTICS-MCP] Configuring streamable HTTP app with middleware", flush=True)
+    logger.info("Configuring streamable HTTP app with middleware")
+
     app = _original_streamable_http_app()
 
     # Add middleware using the same pattern as Google Workspace
@@ -114,7 +126,9 @@ def streamable_http_app_with_middleware():
 
     # Rebuild middleware stack
     app.middleware_stack = app.build_middleware_stack()
-    logger.info("Added UserTokenMiddleware for OAuth token extraction")
+
+    print(f"[ANALYTICS-MCP] Added UserTokenMiddleware - total middleware count: {len(app.user_middleware)}", flush=True)
+    logger.info(f"Added UserTokenMiddleware - total middleware count: {len(app.user_middleware)}")
     return app
 
 
