@@ -23,14 +23,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
-from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from analytics_mcp.config import AnalyticsConfig
 from analytics_mcp.context import AppContext
 from analytics_mcp.coordinator import mcp
-from analytics_mcp.utils.user_token_middleware import UserTokenMiddleware
 
 # Configure logging to ensure our logs show up
 logging.basicConfig(
@@ -102,37 +100,6 @@ async def analytics_lifespan(
 
 # Configure the MCP server with lifespan
 mcp._lifespan = analytics_lifespan
-
-
-# Override streamable_http_app to add UserTokenMiddleware
-# Following the pattern from Google Workspace MCP
-_original_streamable_http_app = mcp.streamable_http_app
-
-
-def streamable_http_app_with_middleware():
-    """Override to add UserTokenMiddleware for OAuth token extraction.
-
-    UserTokenMiddleware extracts Google OAuth tokens from Authorization header.
-    Jarvis manages the OAuth flow and automatically forwards tokens.
-    """
-    print("[ANALYTICS-MCP] Configuring streamable HTTP app with middleware", flush=True)
-    logger.info("Configuring streamable HTTP app with middleware")
-
-    app = _original_streamable_http_app()
-
-    # Add middleware using the same pattern as Google Workspace
-    user_token_mw = Middleware(UserTokenMiddleware)
-    app.user_middleware.insert(0, user_token_mw)
-
-    # Rebuild middleware stack
-    app.middleware_stack = app.build_middleware_stack()
-
-    print(f"[ANALYTICS-MCP] Added UserTokenMiddleware - total middleware count: {len(app.user_middleware)}", flush=True)
-    logger.info(f"Added UserTokenMiddleware - total middleware count: {len(app.user_middleware)}")
-    return app
-
-
-mcp.streamable_http_app = streamable_http_app_with_middleware
 
 
 @mcp.custom_route("/health", methods=["GET"], include_in_schema=False)
