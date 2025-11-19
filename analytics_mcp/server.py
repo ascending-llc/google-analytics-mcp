@@ -20,7 +20,6 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.server.http import StarletteWithLifespan
@@ -97,36 +96,31 @@ async def analytics_lifespan(
 mcp._lifespan = analytics_lifespan
 
 
-# Override the http_app method to add middleware
-_original_http_app = mcp.http_app
+# Override streamable_http_app to add middleware (matching Google Workspace pattern)
+_original_streamable_http_app = mcp.streamable_http_app
 
 
-def http_app_with_middleware(
-    path: str | None = None,
-    middleware: list[Middleware] | None = None,
-    json_response: bool | None = None,
-    transport: Literal["streamable-http", "sse", "http"] = "streamable-http",
-) -> StarletteWithLifespan:
-    """Create HTTP app with UserTokenMiddleware for token extraction.
+def streamable_http_app_with_middleware() -> StarletteWithLifespan:
+    """Create streamable HTTP app with UserTokenMiddleware for token extraction.
 
     UserTokenMiddleware extracts Google OAuth tokens from Authorization header.
     Jarvis manages the OAuth flow and automatically forwards tokens.
+
+    This follows the exact pattern used by Google Workspace MCP server.
     """
+    app = _original_streamable_http_app()
+
+    # Add middleware to the Starlette app (outermost layer)
     user_token_mw = Middleware(UserTokenMiddleware)
-    final_middleware_list = [user_token_mw]
-    if middleware:
-        final_middleware_list.extend(middleware)
+    app.user_middleware.insert(0, user_token_mw)
 
-    return _original_http_app(
-        path=path,
-        middleware=final_middleware_list,
-        json_response=json_response,
-        stateless_http=False,  # Enable stateful sessions for persistent SSE
-        transport=transport,
-    )
+    # Rebuild middleware stack
+    app.middleware_stack = app.build_middleware_stack()
+    logger.info("Added UserTokenMiddleware to streamable HTTP app")
+    return app
 
 
-mcp.http_app = http_app_with_middleware
+mcp.streamable_http_app = streamable_http_app_with_middleware
 
 
 @mcp.custom_route("/health", methods=["GET"], include_in_schema=False)
