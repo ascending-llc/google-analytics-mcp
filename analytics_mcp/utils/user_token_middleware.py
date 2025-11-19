@@ -19,6 +19,7 @@ where Jarvis manages OAuth tokens and forwards them in the Authorization header.
 Token validation happens at the Google Analytics API layer, not here.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -77,9 +78,36 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("authorization", "")
         property_id_header = request.headers.get("X-Analytics-Property-Id")
 
-        # Require Authorization header for all POST/HEAD requests
-        # Let Jarvis OAuth tokens pass through without pre-validation
-        # Token validation will happen naturally when Google APIs are called
+        # Check for MCP protocol methods that don't need auth
+        try:
+            body = await request.body()
+            request._body = body  # Reset body for downstream handlers
+
+            if body:
+                try:
+                    request_data = json.loads(body.decode())
+                    method = request_data.get("method")
+                    if method in [
+                        "ping",
+                        "initialize",
+                        "tools/list",
+                        "prompts/list",
+                        "resources/list",
+                    ]:
+                        logger.info(
+                            "UserTokenMiddleware: allowing protocol method without auth",
+                            extra={"method": method},
+                        )
+                        return await call_next(request)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    logger.warning(
+                        "UserTokenMiddleware: failed to decode request body",
+                        exc_info=True,
+                    )
+        except Exception as e:
+            logger.warning(f"UserTokenMiddleware: failed to read request body: {e}")
+
+        # Require Authorization header for non-protocol methods
         if not auth_header:
             logger.warning(
                 "UserTokenMiddleware: missing Authorization header",
