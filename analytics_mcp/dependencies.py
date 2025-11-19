@@ -86,7 +86,10 @@ async def get_analytics_admin_client(
 
         # Check if client is already cached in request state
         if hasattr(request.state, "admin_client") and request.state.admin_client:
-            logger.debug("get_analytics_admin_client: Returning cached client")
+            logger.info(
+                "get_analytics_admin_client: returning cached client",
+                extra={"user": user_email},
+            )
             return request.state.admin_client
 
         # Extract user token from request state (set by UserTokenMiddleware)
@@ -100,8 +103,11 @@ async def get_analytics_admin_client(
             )
 
         logger.info(
-            f"Creating user-specific Admin API client for user {user_email} "
-            f"(token ...{str(user_token)[-8:]})"
+            "get_analytics_admin_client: creating new client",
+            extra={
+                "user": user_email,
+                "token_tail": str(user_token)[-8:],
+            },
         )
 
         # Create user-specific credentials
@@ -112,23 +118,12 @@ async def get_analytics_admin_client(
             client_info=_CLIENT_INFO, credentials=credentials
         )
 
-        # Validate the token by making a test API call (list account summaries)
-        try:
-            # This will fail if the token is invalid
-            test_pager = await client.list_account_summaries()
-            # Just check that the pager is valid, don't consume results
-            logger.debug(
-                f"get_analytics_admin_client: Validated token for user {user_email}"
-            )
-        except Exception as e:
-            logger.error(
-                f"get_analytics_admin_client: Token validation failed: {e}",
-                exc_info=True,
-            )
-            raise ValueError(f"Invalid Google OAuth token: {e}")
-
         # Cache in request state for this request duration
         request.state.admin_client = client
+        logger.info(
+            "get_analytics_admin_client: cached client in request state",
+            extra={"user": user_email},
+        )
         return client
 
     except RuntimeError:
@@ -162,7 +157,10 @@ async def get_analytics_data_client(
 
         # Check if client is already cached in request state
         if hasattr(request.state, "data_client") and request.state.data_client:
-            logger.debug("get_analytics_data_client: Returning cached client")
+            logger.info(
+                "get_analytics_data_client: returning cached client",
+                extra={"user": user_email},
+            )
             return request.state.data_client
 
         # Extract user token from request state (set by UserTokenMiddleware)
@@ -176,8 +174,11 @@ async def get_analytics_data_client(
             )
 
         logger.info(
-            f"Creating user-specific Data API client for user {user_email} "
-            f"(token ...{str(user_token)[-8:]})"
+            "get_analytics_data_client: creating new client",
+            extra={
+                "user": user_email,
+                "token_tail": str(user_token)[-8:],
+            },
         )
 
         # Create user-specific credentials
@@ -190,6 +191,10 @@ async def get_analytics_data_client(
 
         # Cache in request state for this request duration
         request.state.data_client = client
+        logger.info(
+            "get_analytics_data_client: cached client in request state",
+            extra={"user": user_email},
+        )
         return client
 
     except RuntimeError:
@@ -226,7 +231,10 @@ async def get_analytics_admin_alpha_client(
             hasattr(request.state, "admin_alpha_client")
             and request.state.admin_alpha_client
         ):
-            logger.debug("get_analytics_admin_alpha_client: Returning cached client")
+            logger.info(
+                "get_analytics_admin_alpha_client: returning cached client",
+                extra={"user": user_email},
+            )
             return request.state.admin_alpha_client
 
         # Extract user token from request state (set by UserTokenMiddleware)
@@ -240,8 +248,11 @@ async def get_analytics_admin_alpha_client(
             )
 
         logger.info(
-            f"Creating user-specific Admin Alpha API client for user {user_email} "
-            f"(token ...{str(user_token)[-8:]})"
+            "get_analytics_admin_alpha_client: creating new client",
+            extra={
+                "user": user_email,
+                "token_tail": str(user_token)[-8:],
+            },
         )
 
         # Create user-specific credentials
@@ -254,6 +265,10 @@ async def get_analytics_admin_alpha_client(
 
         # Cache in request state for this request duration
         request.state.admin_alpha_client = client
+        logger.info(
+            "get_analytics_admin_alpha_client: cached client in request state",
+            extra={"user": user_email},
+        )
         return client
 
     except RuntimeError:

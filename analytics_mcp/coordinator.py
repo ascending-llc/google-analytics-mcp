@@ -20,6 +20,7 @@ of the server.
 """
 
 import logging
+from typing import Literal
 
 from fastmcp import FastMCP
 from starlette.applications import Starlette
@@ -34,23 +35,44 @@ logger = logging.getLogger("analytics-mcp.coordinator")
 token_middleware = Middleware(UserTokenMiddleware)
 
 
-# Custom FastMCP class that overrides streamable_http_app to add middleware
+# Custom FastMCP class that overrides http_app to add middleware correctly
 class AnalyticsFastMCP(FastMCP[AppContext]):
-    """FastMCP subclass that adds UserTokenMiddleware to streamable-http transport."""
+    """FastMCP subclass that injects UserTokenMiddleware via http_app override."""
 
-    def streamable_http_app(self) -> "Starlette":
-        """Override to add UserTokenMiddleware for token extraction."""
-        app = super().streamable_http_app()
+    def http_app(
+        self,
+        path: str | None = None,
+        middleware: list[Middleware] | None = None,
+        json_response: bool | None = None,
+        stateless_http: bool | None = None,
+        transport: Literal["http", "streamable-http", "sse"] = "http",
+    ) -> "Starlette":
+        """Override to inject UserTokenMiddleware using FastMCP's supported pattern."""
+        final_middleware: list[Middleware] = [token_middleware]
+        if middleware:
+            final_middleware.extend(middleware)
 
-        # Add token middleware (first added = outermost layer)
-        app.user_middleware.insert(0, token_middleware)
+        logger.info(
+            "AnalyticsFastMCP.http_app configuring transport",
+            extra={
+                "path": path or "(default)",
+                "transport": transport,
+                "stateless": stateless_http,
+                "json_response": json_response,
+                "middleware_count": len(final_middleware),
+            },
+        )
 
-        # Rebuild middleware stack
-        app.middleware_stack = app.build_middleware_stack()
-        logger.info("Added UserTokenMiddleware to streamable-http app")
+        app = super().http_app(
+            path=path,
+            middleware=final_middleware,
+            json_response=json_response,
+            stateless_http=stateless_http,
+            transport=transport,
+        )
+        logger.info("Configured http_app with UserTokenMiddleware")
         return app
 
 
 # Creates the singleton MCP server instance
-# The middleware is configured in streamable_http_app() override above
 mcp = AnalyticsFastMCP("Google Analytics Server")

@@ -19,7 +19,6 @@ where Jarvis manages OAuth tokens and forwards them in the Authorization header.
 Token validation happens at the Google Analytics API layer, not here.
 """
 
-import json
 import logging
 from typing import Any
 
@@ -53,49 +52,39 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        logger.debug(
-            f"UserTokenMiddleware: Processing {request.method} {request.url.path}"
+        logger.info(
+            "UserTokenMiddleware: received request",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "client": request.client.host if request.client else None,
+            },
         )
 
         # Skip auth for health check
         if request.url.path == "/health":
+            logger.debug("UserTokenMiddleware: bypassing /health request")
             return await call_next(request)
 
         # Only check auth for POST/HEAD requests
         if request.method not in ["POST", "HEAD"]:
+            logger.debug(
+                f"UserTokenMiddleware: bypassing non-auth method {request.method}"
+            )
             return await call_next(request)
 
         # Extract headers
         auth_header = request.headers.get("authorization", "")
         property_id_header = request.headers.get("X-Analytics-Property-Id")
 
-        # Check for MCP protocol methods that don't need auth
-        try:
-            body = await request.body()
-            request._body = body  # Reset body for downstream handlers
-
-            if body:
-                try:
-                    request_data = json.loads(body.decode())
-                    method = request_data.get("method")
-                    if method in [
-                        "ping",
-                        "tools/list",
-                        "prompts/list",
-                        "resources/list",
-                    ]:
-                        logger.debug(
-                            f"Allowing MCP protocol method '{method}' without auth"
-                        )
-                        return await call_next(request)
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    pass
-        except Exception as e:
-            logger.warning(f"Failed to read request body: {e}")
-
-        # Require Authorization header
+        # Require Authorization header for all POST/HEAD requests
+        # Let Jarvis OAuth tokens pass through without pre-validation
+        # Token validation will happen naturally when Google APIs are called
         if not auth_header:
-            logger.warning(f"Missing Authorization header for {request.url.path}")
+            logger.warning(
+                "UserTokenMiddleware: missing Authorization header",
+                extra={"path": request.url.path},
+            )
             return JSONResponse(
                 {"error": "Unauthorized: Missing Authorization header"},
                 status_code=401,
@@ -104,7 +93,8 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
         # Extract Bearer token
         if not auth_header.startswith("Bearer "):
             logger.warning(
-                f"Invalid Authorization type: {auth_header.split(' ', 1)[0]}"
+                "UserTokenMiddleware: invalid Authorization type",
+                extra={"type": auth_header.split(' ', 1)[0]},
             )
             return JSONResponse(
                 {"error": "Unauthorized: Only Bearer tokens supported"},
@@ -133,13 +123,24 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
         # Store optional property ID from header
         if property_id_header and property_id_header.strip():
             request.state.user_analytics_property_id = property_id_header.strip()
-            logger.debug(f"Property ID from header: {property_id_header.strip()}")
+            logger.info(
+                "UserTokenMiddleware: received property id header",
+                extra={"property_id": property_id_header.strip()},
+            )
         else:
             request.state.user_analytics_property_id = None
 
-        logger.debug(
-            f"Token extracted successfully: {mask_sensitive(token, 8)}"
+        logger.info(
+            "UserTokenMiddleware: token extracted",
+            extra={
+                "token_tail": mask_sensitive(token, 8),
+                "has_property_id": bool(request.state.user_analytics_property_id),
+            },
         )
 
         response = await call_next(request)
+        logger.debug(
+            "UserTokenMiddleware: completed request",
+            extra={"path": request.url.path, "status": getattr(response, "status_code", None)},
+        )
         return response
