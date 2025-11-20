@@ -21,11 +21,7 @@ class TestUtils(unittest.TestCase):
     """Test cases for the server module."""
 
     def test_server_initialization(self):
-        """Tests that the MCP server instance is initialized.
-
-        This servers as a smoke test to confirm there are no obvious issues
-        with initialization, such as missing imports.
-        """
+        """Smoke test that importing server wires up the singleton MCP instance."""
         from analytics_mcp import server
 
         self.assertIsNotNone(server.mcp, "MCP server instance not initialized")

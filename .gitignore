@@ -66,3 +66,8 @@ system_tests/local_test_setup
 pylintrc
 pylintrc.test
 
+# Temporary documentation and debug files
+*.md.tmp
+*_debug.md
+*_oauth.md
+.claude
