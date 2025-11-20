@@ -16,7 +16,10 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
+from analytics_mcp.dependencies import get_analytics_data_client
 from analytics_mcp.tools.reporting.metadata import (
     get_date_ranges_hints,
     get_dimension_filter_hints,
@@ -25,7 +28,6 @@ from analytics_mcp.tools.reporting.metadata import (
 )
 from analytics_mcp.tools.utils import (
     construct_property_rn,
-    create_data_api_client,
     proto_to_dict,
 )
 from google.analytics import data_v1beta
@@ -80,6 +82,7 @@ def _run_report_description() -> str:
 
 
 async def run_report(
+    ctx: Context,
     property_id: int | str,
     date_ranges: List[Dict[str, str]],
     dimensions: List[str],
@@ -168,17 +171,12 @@ async def run_report(
     if currency_code:
         request.currency_code = currency_code
 
-    response = await create_data_api_client().run_report(request)
-
+    # Get user-specific client from dependency injection
+    client = await get_analytics_data_client(ctx)
+    response = await client.run_report(request)
     return proto_to_dict(response)
 
 
-# The `run_report` tool requires a more complex description that's generated at
-# runtime. Uses the `add_tool` method instead of an annnotation since `add_tool`
-# provides the flexibility needed to generate the description while also
-# including the `run_report` method's docstring.
-mcp.add_tool(
-    run_report,
-    title="Run a Google Analytics Data API report using the Data API",
-    description=_run_report_description(),
-)
+# Register the tool with custom description
+# The description is generated at runtime to include hints
+mcp.tool(description=_run_report_description())(run_report)

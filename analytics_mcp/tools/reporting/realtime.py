@@ -16,10 +16,12 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
+from analytics_mcp.dependencies import get_analytics_data_client
 from analytics_mcp.tools.utils import (
     construct_property_rn,
-    create_data_api_client,
     proto_to_dict,
 )
 from analytics_mcp.tools.reporting.metadata import (
@@ -78,6 +80,7 @@ def _run_realtime_report_description() -> str:
 
 
 async def run_realtime_report(
+    ctx: Context,
     property_id: int | str,
     dimensions: List[str],
     metrics: List[str],
@@ -158,16 +161,12 @@ async def run_realtime_report(
     if offset:
         request.offset = offset
 
-    response = await create_data_api_client().run_realtime_report(request)
+    # Get user-specific client from dependency injection
+    client = await get_analytics_data_client(ctx)
+    response = await client.run_realtime_report(request)
     return proto_to_dict(response)
 
 
-# The `run_realtime_report` tool requires a more complex description that's generated at
-# runtime. Uses the `add_tool` method instead of an annnotation since `add_tool`
-# provides the flexibility needed to generate the description while also
-# including the `run_realtime_report` method's docstring.
-mcp.add_tool(
-    run_realtime_report,
-    title="Run a Google Analytics realtime report using the Data API",
-    description=_run_realtime_report_description(),
-)
+# Register the tool with custom description
+# The description is generated at runtime to include hints
+mcp.tool(description=_run_realtime_report_description())(run_realtime_report)

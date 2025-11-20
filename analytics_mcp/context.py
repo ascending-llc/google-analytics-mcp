@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test cases for the server module."""
+"""Application context for Analytics MCP server lifespan."""
 
-import unittest
+from dataclasses import dataclass
+
+from analytics_mcp.config import AnalyticsConfig
 
 
-class TestUtils(unittest.TestCase):
-    """Test cases for the server module."""
+@dataclass(frozen=True)
+class AppContext:
+    """Application-level context shared across the server lifespan.
 
-    def test_server_initialization(self):
-        """Smoke test that importing server wires up the singleton MCP instance."""
-        from analytics_mcp import server
+    This context is created during server startup and contains
+    global configuration that doesn't change during server lifetime.
+    """
 
-        self.assertIsNotNone(server.mcp, "MCP server instance not initialized")
+    analytics_config: AnalyticsConfig | None
+    read_only: bool = False

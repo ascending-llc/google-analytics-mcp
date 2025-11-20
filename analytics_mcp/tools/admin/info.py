@@ -16,23 +16,29 @@
 
 from typing import Any, Dict, List
 
+from fastmcp import Context
+
 from analytics_mcp.coordinator import mcp
+from analytics_mcp.dependencies import (
+    get_analytics_admin_client,
+    get_analytics_admin_alpha_client,
+)
 from analytics_mcp.tools.utils import (
     construct_property_rn,
-    create_admin_api_client,
-    create_admin_alpha_api_client,
     proto_to_dict,
 )
 from google.analytics import admin_v1beta, admin_v1alpha
 
 
 @mcp.tool()
-async def get_account_summaries() -> List[Dict[str, Any]]:
+async def get_account_summaries(ctx: Context) -> List[Dict[str, Any]]:
     """Retrieves information about the user's Google Analytics accounts and properties."""
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
 
     # Uses an async list comprehension so the pager returned by
     # list_account_summaries retrieves all pages.
-    summary_pager = await create_admin_api_client().list_account_summaries()
+    summary_pager = await client.list_account_summaries()
     all_pages = [
         proto_to_dict(summary_page) async for summary_page in summary_pager
     ]
@@ -40,7 +46,10 @@ async def get_account_summaries() -> List[Dict[str, Any]]:
 
 
 @mcp.tool(title="List links to Google Ads accounts")
-async def list_google_ads_links(property_id: int | str) -> List[Dict[str, Any]]:
+async def list_google_ads_links(
+    ctx: Context,
+    property_id: int | str,
+) -> List[Dict[str, Any]]:
     """Returns a list of links to Google Ads accounts for a property.
 
     Args:
@@ -48,27 +57,35 @@ async def list_google_ads_links(property_id: int | str) -> List[Dict[str, Any]]:
           - A number
           - A string consisting of 'properties/' followed by a number
     """
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
+
     request = admin_v1beta.ListGoogleAdsLinksRequest(
         parent=construct_property_rn(property_id)
     )
     # Uses an async list comprehension so the pager returned by
     # list_google_ads_links retrieves all pages.
-    links_pager = await create_admin_api_client().list_google_ads_links(
-        request=request
-    )
-    all_pages = [proto_to_dict(link_page) async for link_page in links_pager]
+    links_pager = await client.list_google_ads_links(request=request)
+    all_pages = [
+        proto_to_dict(link_page) async for link_page in links_pager
+    ]
     return all_pages
 
 
 @mcp.tool(title="Gets details about a property")
-async def get_property_details(property_id: int | str) -> Dict[str, Any]:
+async def get_property_details(
+    ctx: Context,
+    property_id: int | str,
+) -> Dict[str, Any]:
     """Returns details about a property.
     Args:
         property_id: The Google Analytics property ID. Accepted formats are:
           - A number
           - A string consisting of 'properties/' followed by a number
     """
-    client = create_admin_api_client()
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_client(ctx)
+
     request = admin_v1beta.GetPropertyRequest(
         name=construct_property_rn(property_id)
     )
@@ -78,6 +95,7 @@ async def get_property_details(property_id: int | str) -> Dict[str, Any]:
 
 @mcp.tool(title="Gets property annotations for a property")
 async def list_property_annotations(
+    ctx: Context,
     property_id: int | str,
 ) -> List[Dict[str, Any]]:
     """Returns annotations for a property.
@@ -91,13 +109,14 @@ async def list_property_annotations(
           - A number
           - A string consisting of 'properties/' followed by a number
     """
+    # Get user-specific client from dependency injection
+    client = await get_analytics_admin_alpha_client(ctx)
+
     request = admin_v1alpha.ListReportingDataAnnotationsRequest(
         parent=construct_property_rn(property_id)
     )
-    annotations_pager = (
-        await create_admin_alpha_api_client().list_reporting_data_annotations(
-            request=request
-        )
+    annotations_pager = await client.list_reporting_data_annotations(
+        request=request
     )
     all_pages = [
         proto_to_dict(annotation_page)

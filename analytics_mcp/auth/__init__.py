@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test cases for the server module."""
+"""Authentication module for Analytics MCP.
 
-import unittest
+Note: The old OAuth callback-based authentication has been replaced
+with JWT token-based authentication via UserTokenMiddleware.
 
+Old auth files are prefixed with _UNUSED_ and kept for reference only.
+"""
 
-class TestUtils(unittest.TestCase):
-    """Test cases for the server module."""
+# Export only the scopes that might still be useful
+from analytics_mcp.auth.scopes import DEFAULT_SCOPES
 
-    def test_server_initialization(self):
-        """Smoke test that importing server wires up the singleton MCP instance."""
-        from analytics_mcp import server
-
-        self.assertIsNotNone(server.mcp, "MCP server instance not initialized")
+__all__ = ["DEFAULT_SCOPES"]

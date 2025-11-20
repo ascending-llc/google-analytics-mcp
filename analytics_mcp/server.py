@@ -16,15 +16,96 @@
 
 """Entry point for the Google Analytics MCP server."""
 
+import logging
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from analytics_mcp.config import AnalyticsConfig
+from analytics_mcp.context import AppContext
 from analytics_mcp.coordinator import mcp
 
 # The following imports are necessary to register the tools with the `mcp`
 # object, even though they are not directly used in this file.
-# The `# noqa: F401` comment tells the linter to ignore the "unused import"
-# warning.
 from analytics_mcp.tools.admin import info  # noqa: F401
 from analytics_mcp.tools.reporting import realtime  # noqa: F401
 from analytics_mcp.tools.reporting import core  # noqa: F401
+
+logger = logging.getLogger("analytics-mcp.server")
+
+
+async def health_check(request: Request) -> JSONResponse:
+    """Health check endpoint for Kubernetes probes."""
+    logger.debug("Health check endpoint called.")
+    return JSONResponse({"status": "ok"})
+
+
+@asynccontextmanager
+async def analytics_lifespan(
+    app: FastMCP[AppContext],
+) -> AsyncIterator[dict]:
+    """Lifespan context manager for Analytics MCP server.
+
+    Handles server startup and shutdown logic, including loading
+    configuration from environment variables.
+    """
+    logger.info("Analytics MCP server lifespan starting...")
+
+    # Load configuration (if any server-level config exists)
+    # For pure user-token mode, this might be minimal
+    try:
+        analytics_config = AnalyticsConfig.from_env()
+        logger.info("Analytics configuration loaded from environment")
+    except Exception as e:
+        logger.info(
+            f"No server-level Analytics config found (expected for user-token mode): {e}"
+        )
+        analytics_config = None
+
+    read_only = os.getenv("ANALYTICS_READ_ONLY", "false").lower() == "true"
+
+    app_context = AppContext(
+        analytics_config=analytics_config,
+        read_only=read_only,
+    )
+
+    logger.info(f"Read-only mode: {'ENABLED' if read_only else 'DISABLED'}")
+
+    try:
+        yield {"app_lifespan_context": app_context}
+    except Exception as e:
+        logger.error(f"Error during lifespan: {e}", exc_info=True)
+        raise
+    finally:
+        logger.info("Analytics MCP server lifespan shutting down...")
+        logger.info("Analytics MCP server lifespan shutdown complete.")
+
+
+# Configure the MCP server with lifespan
+mcp._lifespan = analytics_lifespan
+
+
+@mcp.custom_route("/health", methods=["GET"], include_in_schema=False)
+async def _health_check_route(request: Request) -> JSONResponse:
+    """Health check route for Kubernetes liveness/readiness probes."""
+    return await health_check(request)
+
+
+logger.info("Added /health endpoint for Kubernetes probes")
+
+
+def main() -> None:
+    """Runs the MCP server using HTTP transport."""
+    # Always use HTTP transport for token-based authentication
+    transport = os.getenv("MCP_TRANSPORT", "streamable-http")
+    host = os.getenv("FASTMCP_HTTP_HOST", "0.0.0.0")
+    port = int(os.getenv("FASTMCP_HTTP_PORT", "3334"))
+    logger.info(f"Starting Analytics MCP server with transport: {transport} on {host}:{port}")
+    mcp.run(transport=transport, host=host, port=port)
 
 
 def run_server() -> None:
@@ -32,7 +113,7 @@ def run_server() -> None:
 
     Serves as the entrypoint for the 'runmcp' command.
     """
-    mcp.run()
+    main()
 
 
 if __name__ == "__main__":
