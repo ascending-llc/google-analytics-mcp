@@ -77,9 +77,10 @@ class AnalyticsFastMCP(FastMCP[AppContext]):
 # Creates the singleton MCP server instance
 mcp = AnalyticsFastMCP("Google Analytics Server")
 
-# Apply schema fix to work around FastMCP 2.13.0.2 bug where additionalProperties
+# Apply schema patch to work around FastMCP 2.13.0.2 bug where additionalProperties
 # is generated as an object instead of a boolean
-from analytics_mcp.utils.schema_fix import patch_fastmcp_schemas
+# See: https://github.com/jlowin/fastmcp/issues/2459
+from analytics_mcp.utils.schema_patch import patch_fastmcp_schemas
 
 patch_fastmcp_schemas(mcp)
-logger.info("Applied FastMCP schema fix for additionalProperties")
+logger.info("Applied FastMCP schema patch for additionalProperties")

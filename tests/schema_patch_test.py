@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test cases for the schema_fix utility module."""
+"""Test cases for the schema_patch utility module."""
 
 import unittest
 from unittest.mock import Mock, patch
 
-from analytics_mcp.utils.schema_fix import (
+from analytics_mcp.utils.schema_patch import (
     fix_additional_properties,
     patch_fastmcp_schemas,
 )
@@ -198,7 +198,7 @@ class TestFixAdditionalProperties(unittest.TestCase):
 class TestPatchFastMCPSchemas(unittest.TestCase):
     """Test cases for the patch_fastmcp_schemas function."""
 
-    @patch("analytics_mcp.utils.schema_fix.fix_additional_properties")
+    @patch("analytics_mcp.utils.schema_patch.fix_additional_properties")
     def test_patch_applies_to_tool_class(self, mock_fix):
         """Tests that the patch is applied to the Tool class."""
         # Create a mock Tool class with to_mcp_tool method
@@ -236,7 +236,7 @@ class TestPatchFastMCPSchemas(unittest.TestCase):
             # Should not raise an exception
             patch_fastmcp_schemas(mock_mcp)
 
-    @patch("analytics_mcp.utils.schema_fix.fix_additional_properties")
+    @patch("analytics_mcp.utils.schema_patch.fix_additional_properties")
     def test_patched_method_fixes_parameters(self, mock_fix):
         """Tests that the patched method fixes parameters schema."""
         mock_fix.side_effect = lambda x: x  # Return input unchanged
@@ -269,7 +269,7 @@ class TestPatchFastMCPSchemas(unittest.TestCase):
                 "fix_additional_properties should be called",
             )
 
-    @patch("analytics_mcp.utils.schema_fix.fix_additional_properties")
+    @patch("analytics_mcp.utils.schema_patch.fix_additional_properties")
     def test_patched_method_fixes_output_schema(self, mock_fix):
         """Tests that the patched method fixes output_schema."""
         mock_fix.side_effect = lambda x: x  # Return input unchanged

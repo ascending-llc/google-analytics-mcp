@@ -12,24 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utility to fix FastMCP's invalid schema generation.
+"""Patch to fix FastMCP's invalid JSON schema generation.
 
-FastMCP 2.13.0.2 generates invalid JSON schemas where additionalProperties
-is an object instead of a boolean. This violates the JSON Schema spec and
-causes Zod validation errors in the MCP SDK.
+**Why this patch is needed:**
+FastMCP 2.13.0.2 generates invalid JSON schemas where `additionalProperties`
+is an object instead of a boolean. This violates the JSON Schema specification
+(https://json-schema.org/understanding-json-schema/reference/object.html#additional-properties)
+and causes Zod validation errors in MCP SDK clients, preventing tools from appearing.
 
-This module monkey-patches FastMCP's Tool.to_mcp_tool method to fix schemas before
-they're sent to the client.
+**What this patch does:**
+Monkey-patches FastMCP's `Tool.to_mcp_tool()` method to recursively convert
+invalid `additionalProperties` objects to boolean `true` before schemas are
+sent to the client.
 
-NOTE: This workaround can be removed once upgrading to a FastMCP version that
-generates valid JSON schemas
-TODO: Link to FastMCP issue/PR when available.
+**Tracking:**
+This workaround addresses the issue reported in:
+https://github.com/jlowin/fastmcp/issues/2459
+
+This patch can be removed once upgrading to a FastMCP version that generates
+valid JSON schemas.
 """
 
 import logging
 from typing import Any, Dict
 
-logger = logging.getLogger("analytics-mcp.schema_fix")
+logger = logging.getLogger("analytics-mcp.schema_patch")
 
 
 def fix_additional_properties(schema: Dict[str, Any]) -> Dict[str, Any]:

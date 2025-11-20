@@ -6,18 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
-- **Schema Fix Utility** (2025-11-20)
-  - Added `analytics_mcp/utils/schema_fix.py` to fix FastMCP 2.13.0.2 invalid JSON schema generation
+- **Schema Patch Utility** (2025-11-20)
+  - Added `analytics_mcp/utils/schema_patch.py` to fix FastMCP 2.13.0.2 invalid JSON schema generation
   - Monkey-patches `Tool.to_mcp_tool()` to convert invalid `additionalProperties` objects to boolean
   - Fixes Zod validation errors in MCP SDK clients
-  - Comprehensive test coverage in `tests/schema_fix_test.py` (15 test cases)
+  - Addresses issue: https://github.com/jlowin/fastmcp/issues/2459
+  - Comprehensive test coverage in `tests/schema_patch_test.py` (16 test cases including idempotency)
   - Structured logging with extra context for debugging
+  - Idempotent patching prevents double-wrapping if called multiple times
   - Related commit: `40d55ec`
 
 - **Test Coverage** (2025-11-20)
-  - Added comprehensive unit tests for schema fix utility
+  - Added comprehensive unit tests for schema patch utility
   - Tests cover nested schemas, arrays, anyOf/allOf/oneOf, and edge cases
-  - All 15 tests passing
+  - Test for idempotent patching to prevent double-wrapping
+  - All 16 tests passing
 
 ### Changed
 - **Middleware Refactoring** (2025-11-18 - 2025-11-19)
